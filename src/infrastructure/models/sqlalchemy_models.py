@@ -7,9 +7,13 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from infrastructure.config.database import Base
 
+# Definir el schema a usar
+SCHEMA = "Pedidos"
+
 
 class RoleModel(Base):
     __tablename__ = "roles"
+    __table_args__ = {"schema": SCHEMA}
     
     id_rol = Column(Integer, primary_key=True, index=True)
     nombre_rol = Column(String(50), unique=True, nullable=False)
@@ -24,6 +28,7 @@ class RoleModel(Base):
 
 class FormularioModel(Base):
     __tablename__ = "formularios"
+    __table_args__ = {"schema": SCHEMA}
     
     id_formulario = Column(Integer, primary_key=True, index=True)
     nombre_formulario = Column(String(100), unique=True, nullable=False)
@@ -37,10 +42,11 @@ class FormularioModel(Base):
 
 class DetallePermisoModel(Base):
     __tablename__ = "detalle_permisos"
+    __table_args__ = {"schema": SCHEMA}
     
     id_permiso = Column(Integer, primary_key=True, index=True)
-    id_rol = Column(Integer, ForeignKey("roles.id_rol", ondelete="CASCADE"), nullable=False)
-    id_formulario = Column(Integer, ForeignKey("formularios.id_formulario", ondelete="CASCADE"), nullable=False)
+    id_rol = Column(Integer, ForeignKey(f"{SCHEMA}.roles.id_rol", ondelete="CASCADE"), nullable=False)
+    id_formulario = Column(Integer, ForeignKey(f"{SCHEMA}.formularios.id_formulario", ondelete="CASCADE"), nullable=False)
     puede_leer = Column(Boolean, default=True)
     puede_crear = Column(Boolean, default=False)
     puede_editar = Column(Boolean, default=False)
@@ -54,6 +60,7 @@ class DetallePermisoModel(Base):
 
 class UserModel(Base):
     __tablename__ = "usuarios"
+    __table_args__ = {"schema": SCHEMA}
     
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, nullable=False, index=True)
@@ -62,7 +69,7 @@ class UserModel(Base):
     apellidos = Column(String(100), nullable=False)
     id_proveedor = Column(Integer, nullable=True)
     estado = Column(Boolean, default=True, index=True)
-    rol_id = Column(Integer, ForeignKey("roles.id_rol"), nullable=False)
+    rol_id = Column(Integer, ForeignKey(f"{SCHEMA}.roles.id_rol"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
@@ -73,9 +80,10 @@ class UserModel(Base):
 
 class RefreshTokenModel(Base):
     __tablename__ = "refresh_tokens"
+    __table_args__ = {"schema": SCHEMA}
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey(f"{SCHEMA}.usuarios.id", ondelete="CASCADE"), nullable=False)
     token = Column(String(500), unique=True, nullable=False, index=True)
     expires_at = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
