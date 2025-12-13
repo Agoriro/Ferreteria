@@ -3,8 +3,10 @@ Modelos SQLAlchemy (Adaptadores de persistencia).
 Estos son detalles de implementación, no dominio.
 """
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Table
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+import uuid
 from infrastructure.config.database import Base
 
 
@@ -83,3 +85,14 @@ class RefreshTokenModel(Base):
     
     # Relationships
     user = relationship("UserModel", back_populates="refresh_tokens")
+
+
+class InventarioExcluidoModel(Base):
+    """Modelo para productos excluidos del inventario."""
+    __tablename__ = "inventario_excluido"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    codigo_producto = Column(String(100), nullable=False, index=True)
+    status = Column(Boolean, default=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

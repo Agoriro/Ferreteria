@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from infrastructure.config.settings import get_settings
-from infrastructure.adapters.web.routers import auth_router, user_router, role_router
+from infrastructure.adapters.web.routers import auth_router, user_router, role_router, inventario_excluido_router
 
 settings = get_settings()
 
@@ -32,6 +32,7 @@ app.add_middleware(
 app.include_router(auth_router.router, prefix="/api/v1")
 app.include_router(user_router.router, prefix="/api/v1")
 app.include_router(role_router.router, prefix="/api/v1")
+app.include_router(inventario_excluido_router.router, prefix="/api/v1")
 
 
 @app.get("/")

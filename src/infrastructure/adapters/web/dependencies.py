@@ -11,9 +11,11 @@ from infrastructure.config.database import get_db
 from infrastructure.security.jwt_handler import JWTHandler
 from infrastructure.adapters.repositories.sqlalchemy_user_repository import SQLAlchemyUserRepository
 from infrastructure.adapters.repositories.sqlalchemy_role_repository import SQLAlchemyRoleRepository
+from infrastructure.adapters.repositories.sqlalchemy_inventario_excluido_repository import SQLAlchemyInventarioExcluidoRepository
 from application.use_cases.user_use_case import UserUseCase
 from application.use_cases.auth_use_case import AuthUseCase
 from application.use_cases.role_use_case import RoleUseCase
+from application.use_cases.inventario_excluido_use_case import InventarioExcluidoUseCase
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
@@ -27,6 +29,11 @@ def get_user_repository(db: AsyncSession = Depends(get_db)) -> SQLAlchemyUserRep
 def get_role_repository(db: AsyncSession = Depends(get_db)) -> SQLAlchemyRoleRepository:
     """Factory para repositorio de roles."""
     return SQLAlchemyRoleRepository(db)
+
+
+def get_inventario_excluido_repository(db: AsyncSession = Depends(get_db)) -> SQLAlchemyInventarioExcluidoRepository:
+    """Factory para repositorio de inventario excluido."""
+    return SQLAlchemyInventarioExcluidoRepository(db)
 
 
 # JWT Handler
@@ -56,6 +63,13 @@ def get_role_use_case(
 ) -> RoleUseCase:
     """Factory para caso de uso de roles."""
     return RoleUseCase(role_repo)
+
+
+def get_inventario_excluido_use_case(
+    repo: SQLAlchemyInventarioExcluidoRepository = Depends(get_inventario_excluido_repository)
+) -> InventarioExcluidoUseCase:
+    """Factory para caso de uso de inventario excluido."""
+    return InventarioExcluidoUseCase(repo)
 
 
 # Autenticación
