@@ -2,8 +2,12 @@
 Configuración centralizada de la aplicación.
 Principio SOLID: Single Responsibility - Gestiona solo la configuración.
 """
-from pydantic_settings import BaseSettings
+from pathlib import Path
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
+
+# Obtener la ruta raíz del proyecto (2 niveles arriba de este archivo)
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
 
 class Settings(BaseSettings):
@@ -20,9 +24,11 @@ class Settings(BaseSettings):
     APP_NAME: str = "Hexagonal Auth API"
     DEBUG: bool = False
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = SettingsConfigDict(
+        env_file=str(BASE_DIR / ".env"),
+        env_file_encoding="utf-8",
+        case_sensitive=True
+    )
 
 
 @lru_cache()
