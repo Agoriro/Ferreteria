@@ -22,6 +22,7 @@ class SQLAlchemyInventarioExcluidoRepository(InventarioExcluidoRepositoryPort):
         """Crea un nuevo registro de inventario excluido."""
         db_record = InventarioExcluidoModel(
             codigo_producto=data.codigo_producto,
+            empresa=data.empresa,
             status=data.status
         )
         
@@ -36,9 +37,10 @@ class SQLAlchemyInventarioExcluidoRepository(InventarioExcluidoRepositoryPort):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
     
-    async def get_by_codigo_producto(self, codigo_producto: str) -> Optional[InventarioExcluidoModel]:
-        """Obtiene registro por código de producto."""
+    async def get_by_empresa_codigo(self, empresa: str, codigo_producto: str) -> Optional[InventarioExcluidoModel]:
+        """Obtiene registro por empresa y código de producto (combinación única)."""
         stmt = select(InventarioExcluidoModel).where(
+            InventarioExcluidoModel.empresa == empresa,
             InventarioExcluidoModel.codigo_producto == codigo_producto
         )
         result = await self.session.execute(stmt)

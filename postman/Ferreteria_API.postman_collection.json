@@ -1,0 +1,890 @@
+{
+	"info": {
+		"_postman_id": "ferreteria-api-collection",
+		"name": "Ferreteria API",
+		"description": "Colección de endpoints para la API de Ferretería con arquitectura hexagonal",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000/api/v1",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refresh_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "inventario_excluido_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "dias_entrega_proveedor_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('access_token', jsonData.access_token);",
+									"    pm.collectionVariables.set('refresh_token', jsonData.refresh_token);",
+									"    console.log('Tokens guardados correctamente');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "username",
+									"value": "admin",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "admin123",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "login"]
+						},
+						"description": "Autenticación de usuario. Retorna access_token y refresh_token."
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('access_token', jsonData.access_token);",
+									"    console.log('Access token renovado');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refresh_token\": \"{{refresh_token}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/refresh-token",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "refresh-token"]
+						},
+						"description": "Renueva el access_token usando el refresh_token."
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints de autenticación"
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "Create User",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"nuevo_usuario\",\n    \"password\": \"password123\",\n    \"nombres\": \"Juan\",\n    \"apellidos\": \"Pérez García\",\n    \"rol_id\": 1,\n    \"id_proveedor\": null\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/",
+							"host": ["{{base_url}}"],
+							"path": ["users", ""]
+						},
+						"description": "Crea un nuevo usuario en el sistema."
+					},
+					"response": []
+				},
+				{
+					"name": "List Users",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/users/?skip=0&limit=100&include_inactive=false",
+							"host": ["{{base_url}}"],
+							"path": ["users", ""],
+							"query": [
+								{
+									"key": "skip",
+									"value": "0",
+									"description": "Número de registros a saltar"
+								},
+								{
+									"key": "limit",
+									"value": "100",
+									"description": "Límite de registros"
+								},
+								{
+									"key": "include_inactive",
+									"value": "false",
+									"description": "Incluir usuarios inactivos"
+								}
+							]
+						},
+						"description": "Lista todos los usuarios del sistema."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Current User (Me)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/users/me",
+							"host": ["{{base_url}}"],
+							"path": ["users", "me"]
+						},
+						"description": "Obtiene la información del usuario autenticado."
+					},
+					"response": []
+				},
+				{
+					"name": "Get User by ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/users/1",
+							"host": ["{{base_url}}"],
+							"path": ["users", "1"]
+						},
+						"description": "Obtiene un usuario por su ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Update User",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"nombres\": \"Juan Carlos\",\n    \"apellidos\": \"Pérez López\",\n    \"estado\": true,\n    \"rol_id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/1",
+							"host": ["{{base_url}}"],
+							"path": ["users", "1"]
+						},
+						"description": "Actualiza los datos de un usuario."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete User (Soft Delete)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/users/1",
+							"host": ["{{base_url}}"],
+							"path": ["users", "1"]
+						},
+						"description": "Desactiva un usuario (soft delete)."
+					},
+					"response": []
+				},
+				{
+					"name": "Change Password",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"current_password\": \"password_actual\",\n    \"new_password\": \"nuevo_password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/1/change-password",
+							"host": ["{{base_url}}"],
+							"path": ["users", "1", "change-password"]
+						},
+						"description": "Cambia la contraseña de un usuario."
+					},
+					"response": []
+				}
+			],
+			"description": "Gestión de usuarios"
+		},
+		{
+			"name": "Roles",
+			"item": [
+				{
+					"name": "Create Role",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"nombre_rol\": \"Vendedor\",\n    \"descripcion\": \"Rol para usuarios vendedores\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/roles/",
+							"host": ["{{base_url}}"],
+							"path": ["roles", ""]
+						},
+						"description": "Crea un nuevo rol en el sistema."
+					},
+					"response": []
+				},
+				{
+					"name": "List Roles",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/roles/",
+							"host": ["{{base_url}}"],
+							"path": ["roles", ""]
+						},
+						"description": "Lista todos los roles del sistema."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Role by ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/roles/1",
+							"host": ["{{base_url}}"],
+							"path": ["roles", "1"]
+						},
+						"description": "Obtiene un rol por su ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Role",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"nombre_rol\": \"Vendedor Senior\",\n    \"descripcion\": \"Rol para vendedores con experiencia\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/roles/1",
+							"host": ["{{base_url}}"],
+							"path": ["roles", "1"]
+						},
+						"description": "Actualiza los datos de un rol."
+					},
+					"response": []
+				}
+			],
+			"description": "Gestión de roles"
+		},
+		{
+			"name": "Inventario Excluido",
+			"item": [
+				{
+					"name": "Create Inventario Excluido",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('inventario_excluido_id', jsonData.id);",
+									"    console.log('ID guardado: ' + jsonData.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"codigo_producto\": \"PROD-001\",\n    \"empresa\": \"Ferreteria Central\",\n    \"status\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/inventario-excluido/",
+							"host": ["{{base_url}}"],
+							"path": ["inventario-excluido", ""]
+						},
+						"description": "Crea un nuevo registro de producto excluido del inventario."
+					},
+					"response": []
+				},
+				{
+					"name": "List Inventario Excluido",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/inventario-excluido/?skip=0&limit=100&include_inactive=false",
+							"host": ["{{base_url}}"],
+							"path": ["inventario-excluido", ""],
+							"query": [
+								{
+									"key": "skip",
+									"value": "0",
+									"description": "Número de registros a saltar"
+								},
+								{
+									"key": "limit",
+									"value": "100",
+									"description": "Límite de registros"
+								},
+								{
+									"key": "include_inactive",
+									"value": "false",
+									"description": "Incluir registros inactivos"
+								}
+							]
+						},
+						"description": "Lista todos los productos excluidos del inventario con paginación."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Inventario Excluido by ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/inventario-excluido/{{inventario_excluido_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["inventario-excluido", "{{inventario_excluido_id}}"]
+						},
+						"description": "Obtiene un registro de inventario excluido por su UUID."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Inventario Excluido",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"codigo_producto\": \"PROD-001-UPDATED\",\n    \"empresa\": \"Ferreteria Norte\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/inventario-excluido/{{inventario_excluido_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["inventario-excluido", "{{inventario_excluido_id}}"]
+						},
+						"description": "Actualiza un registro de inventario excluido."
+					},
+					"response": []
+				},
+				{
+					"name": "Toggle Status Inventario Excluido",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/inventario-excluido/{{inventario_excluido_id}}/toggle-status",
+							"host": ["{{base_url}}"],
+							"path": ["inventario-excluido", "{{inventario_excluido_id}}", "toggle-status"]
+						},
+						"description": "Cambia el estado (activo/inactivo) de un registro."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Inventario Excluido",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/inventario-excluido/{{inventario_excluido_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["inventario-excluido", "{{inventario_excluido_id}}"]
+						},
+						"description": "Elimina permanentemente un registro de inventario excluido."
+					},
+					"response": []
+				}
+			],
+			"description": "Gestión de productos excluidos del inventario"
+		},
+		{
+			"name": "Días Entrega Proveedor",
+			"item": [
+				{
+					"name": "Create Dias Entrega Proveedor",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('dias_entrega_proveedor_id', jsonData.id);",
+									"    console.log('ID guardado: ' + jsonData.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"empresa\": \"Ferreteria Central\",\n    \"nit_proveedor\": \"900123456-1\",\n    \"dias_entrega\": 5\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/dias-entrega-proveedor/",
+							"host": ["{{base_url}}"],
+							"path": ["dias-entrega-proveedor", ""]
+						},
+						"description": "Crea un nuevo registro de días de entrega por proveedor."
+					},
+					"response": []
+				},
+				{
+					"name": "List Dias Entrega Proveedor",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/dias-entrega-proveedor/?skip=0&limit=100",
+							"host": ["{{base_url}}"],
+							"path": ["dias-entrega-proveedor", ""],
+							"query": [
+								{
+									"key": "skip",
+									"value": "0",
+									"description": "Número de registros a saltar"
+								},
+								{
+									"key": "limit",
+									"value": "100",
+									"description": "Límite de registros"
+								},
+								{
+									"key": "empresa",
+									"value": "Ferreteria Central",
+									"description": "Filtrar por empresa (opcional)",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Lista todos los registros de días de entrega por proveedor."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Dias Entrega Proveedor by ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/dias-entrega-proveedor/{{dias_entrega_proveedor_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["dias-entrega-proveedor", "{{dias_entrega_proveedor_id}}"]
+						},
+						"description": "Obtiene un registro de días de entrega por su UUID."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Dias Entrega Proveedor",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"dias_entrega\": 7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/dias-entrega-proveedor/{{dias_entrega_proveedor_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["dias-entrega-proveedor", "{{dias_entrega_proveedor_id}}"]
+						},
+						"description": "Actualiza un registro de días de entrega."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Dias Entrega Proveedor",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/dias-entrega-proveedor/{{dias_entrega_proveedor_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["dias-entrega-proveedor", "{{dias_entrega_proveedor_id}}"]
+						},
+						"description": "Elimina permanentemente un registro de días de entrega."
+					},
+					"response": []
+				}
+			],
+			"description": "Gestión de días de entrega por proveedor"
+		},
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Root (Health Check)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8000/",
+							"host": ["http://localhost:8000"],
+							"path": [""]
+						},
+						"description": "Endpoint raíz para verificar que la API está funcionando."
+					},
+					"response": []
+				},
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8000/health",
+							"host": ["http://localhost:8000"],
+							"path": ["health"]
+						},
+						"description": "Endpoint de salud de la aplicación."
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints de salud"
+		}
+	]
+}
+

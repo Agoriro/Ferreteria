@@ -12,10 +12,14 @@ from infrastructure.security.jwt_handler import JWTHandler
 from infrastructure.adapters.repositories.sqlalchemy_user_repository import SQLAlchemyUserRepository
 from infrastructure.adapters.repositories.sqlalchemy_role_repository import SQLAlchemyRoleRepository
 from infrastructure.adapters.repositories.sqlalchemy_inventario_excluido_repository import SQLAlchemyInventarioExcluidoRepository
+from infrastructure.adapters.repositories.sqlalchemy_dias_entrega_proveedor_repository import SQLAlchemyDiasEntregaProveedorRepository
+from infrastructure.adapters.repositories.sqlalchemy_vista_inventarios_repository import SQLAlchemyVistaInventariosRepository
 from application.use_cases.user_use_case import UserUseCase
 from application.use_cases.auth_use_case import AuthUseCase
 from application.use_cases.role_use_case import RoleUseCase
 from application.use_cases.inventario_excluido_use_case import InventarioExcluidoUseCase
+from application.use_cases.dias_entrega_proveedor_use_case import DiasEntregaProveedorUseCase
+from application.use_cases.vista_inventarios_use_case import VistaInventariosUseCase
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
@@ -34,6 +38,16 @@ def get_role_repository(db: AsyncSession = Depends(get_db)) -> SQLAlchemyRoleRep
 def get_inventario_excluido_repository(db: AsyncSession = Depends(get_db)) -> SQLAlchemyInventarioExcluidoRepository:
     """Factory para repositorio de inventario excluido."""
     return SQLAlchemyInventarioExcluidoRepository(db)
+
+
+def get_dias_entrega_proveedor_repository(db: AsyncSession = Depends(get_db)) -> SQLAlchemyDiasEntregaProveedorRepository:
+    """Factory para repositorio de días de entrega por proveedor."""
+    return SQLAlchemyDiasEntregaProveedorRepository(db)
+
+
+def get_vista_inventarios_repository(db: AsyncSession = Depends(get_db)) -> SQLAlchemyVistaInventariosRepository:
+    """Factory para repositorio de vista de inventarios."""
+    return SQLAlchemyVistaInventariosRepository(db)
 
 
 # JWT Handler
@@ -70,6 +84,20 @@ def get_inventario_excluido_use_case(
 ) -> InventarioExcluidoUseCase:
     """Factory para caso de uso de inventario excluido."""
     return InventarioExcluidoUseCase(repo)
+
+
+def get_dias_entrega_proveedor_use_case(
+    repo: SQLAlchemyDiasEntregaProveedorRepository = Depends(get_dias_entrega_proveedor_repository)
+) -> DiasEntregaProveedorUseCase:
+    """Factory para caso de uso de días de entrega por proveedor."""
+    return DiasEntregaProveedorUseCase(repo)
+
+
+def get_vista_inventarios_use_case(
+    repo: SQLAlchemyVistaInventariosRepository = Depends(get_vista_inventarios_repository)
+) -> VistaInventariosUseCase:
+    """Factory para caso de uso de vista de inventarios."""
+    return VistaInventariosUseCase(repo)
 
 
 # Autenticación

@@ -25,12 +25,12 @@ class InventarioExcluidoUseCase:
     
     async def create(self, data: InventarioExcluidoCreate):
         """Crea un nuevo registro de inventario excluido."""
-        # Verificar si ya existe un registro con el mismo código de producto
-        existing = await self.repository.get_by_codigo_producto(data.codigo_producto)
+        # Verificar si ya existe un registro con la misma empresa y código de producto
+        existing = await self.repository.get_by_empresa_codigo(data.empresa, data.codigo_producto)
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Ya existe un registro con el código de producto: {data.codigo_producto}"
+                detail=f"Ya existe un registro con empresa '{data.empresa}' y código de producto '{data.codigo_producto}'"
             )
         
         return await self.repository.create(data)
@@ -71,13 +71,17 @@ class InventarioExcluidoUseCase:
                 detail="Registro no encontrado"
             )
         
-        # Si se está actualizando el código de producto, verificar que no exista otro igual
-        if data.codigo_producto and data.codigo_producto != existing.codigo_producto:
-            duplicate = await self.repository.get_by_codigo_producto(data.codigo_producto)
-            if duplicate:
+        # Si se está actualizando empresa o código de producto, verificar que no exista duplicado
+        new_empresa = data.empresa if data.empresa else existing.empresa
+        new_codigo = data.codigo_producto if data.codigo_producto else existing.codigo_producto
+        
+        if (data.empresa and data.empresa != existing.empresa) or \
+           (data.codigo_producto and data.codigo_producto != existing.codigo_producto):
+            duplicate = await self.repository.get_by_empresa_codigo(new_empresa, new_codigo)
+            if duplicate and duplicate.id != record_id:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Ya existe un registro con el código de producto: {data.codigo_producto}"
+                    detail=f"Ya existe un registro con empresa '{new_empresa}' y código de producto '{new_codigo}'"
                 )
         
         return await self.repository.update(record_id, data)

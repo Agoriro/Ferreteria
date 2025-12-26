@@ -22,8 +22,8 @@ class InventarioExcluidoRepositoryPort(ABC):
         pass
     
     @abstractmethod
-    async def get_by_codigo_producto(self, codigo_producto: str):
-        """Obtiene registro por código de producto."""
+    async def get_by_empresa_codigo(self, empresa: str, codigo_producto: str):
+        """Obtiene registro por empresa y código de producto."""
         pass
     
     @abstractmethod

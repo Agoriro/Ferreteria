@@ -11,6 +11,7 @@ from uuid import UUID
 class InventarioExcluidoBase(BaseModel):
     """Base schema con campos comunes."""
     codigo_producto: str = Field(..., min_length=1, max_length=100, description="Código del producto a excluir")
+    empresa: str = Field(..., min_length=1, max_length=100, description="Empresa a la que pertenece el producto")
 
 
 class InventarioExcluidoCreate(InventarioExcluidoBase):
@@ -21,6 +22,7 @@ class InventarioExcluidoCreate(InventarioExcluidoBase):
 class InventarioExcluidoUpdate(BaseModel):
     """DTO para actualización - todos los campos opcionales."""
     codigo_producto: Optional[str] = Field(None, min_length=1, max_length=100)
+    empresa: Optional[str] = Field(None, min_length=1, max_length=100)
     status: Optional[bool] = None
 
 
@@ -45,4 +47,3 @@ class InventarioExcluidoListResponse(BaseModel):
     total: int
     skip: int
     limit: int
-
