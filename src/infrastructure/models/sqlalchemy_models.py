@@ -2,15 +2,16 @@
 Modelos SQLAlchemy (Adaptadores de persistencia).
 Estos son detalles de implementación, no dominio.
 """
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Table, Numeric, SmallInteger
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Table, Numeric, SmallInteger, Date, Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID
+import enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
 from infrastructure.config.database import Base
 
 # Definir el schema a usar
-SCHEMA = "Pedidos"
+SCHEMA = "public"
 
 
 class RoleModel(Base):
@@ -109,14 +110,17 @@ class InventarioExcluidoModel(Base):
 
 
 class DiasEntregaProveedorModel(Base):
-    """Modelo para días de entrega configurados por proveedor y empresa."""
+    """Modelo para días de entrega configurados por proveedor, producto y empresa."""
     __tablename__ = "dias_entrega_proveedor"
     __table_args__ = {"schema": SCHEMA}
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     empresa = Column(String(100), nullable=False, index=True)
     nit_proveedor = Column(String(200), nullable=False, index=True)
+    codigo_producto = Column(String(100), nullable=False, index=True)
     dias_entrega = Column(Integer, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class VistaTablaInventariosModel(Base):
@@ -219,3 +223,87 @@ class VistaTablaInventariosModel(Base):
     valor_impoconsumo = Column(Numeric(28, 6), nullable=True)
     porc_arancel = Column(Numeric(28, 6), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class StatusSugerido(enum.Enum):
+    """Enum para el status de sugerido de compras."""
+    Created = "Created"
+    Requested = "Requested"
+    Processed = "Processed"
+
+
+class SugeridoComprasModel(Base):
+    """Modelo para Sugerido de Compras."""
+    __tablename__ = "sugerido_compras"
+    __table_args__ = {"schema": SCHEMA}
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    empresa = Column(String(100), nullable=False, index=True)
+    fecha = Column(Date, nullable=True)
+    num_doc = Column(String(100), nullable=True)
+    proveedor = Column(String(255), nullable=True)
+    grupo3 = Column(String(255), nullable=True)
+    grupo4 = Column(String(255), nullable=True)
+    grupo5 = Column(String(255), nullable=True)
+    cod_prod = Column(String(100), nullable=False, index=True)
+    descripcion = Column(String(500), nullable=True)
+    unidad_medida = Column(String(50), nullable=True)
+    exist = Column(Numeric(28, 6), default=0)
+    exist_mc = Column(Numeric(28, 6), default=0)
+    cantidad_ventas_anterior = Column(Numeric(28, 6), default=0)
+    cantidad_ventas_actual = Column(Numeric(28, 6), default=0)
+    sugerido_compras = Column(Numeric(28, 6), default=0)
+    cantidad_a_pedir = Column(Numeric(28, 6), default=0)
+    proveedor1 = Column(String(255), nullable=True)
+    proveedor2 = Column(String(255), nullable=True)
+    proveedor3 = Column(String(255), nullable=True)
+    proveedor4 = Column(String(255), nullable=True)
+    compras_en_el_periodo = Column(Numeric(28, 6), default=0)
+    total_entradas_en_el_periodo = Column(Numeric(28, 6), default=0)
+    ultima_fecha_compra = Column(Date, nullable=True)
+    ventas_en_el_periodo = Column(Numeric(28, 6), default=0)
+    total_salidas_en_el_periodo = Column(Numeric(28, 6), default=0)
+    ultima_fecha_venta = Column(Date, nullable=True)
+    saldo_actual = Column(Numeric(28, 6), default=0)
+    val_unit = Column(Numeric(28, 6), default=0)
+    dcto = Column(Numeric(28, 6), default=0)
+    val_neto = Column(Numeric(28, 6), default=0)
+    precio1 = Column(Numeric(28, 6), default=0)
+    util_1 = Column(Numeric(28, 6), default=0)
+    precio2 = Column(Numeric(28, 6), default=0)
+    util_2 = Column(Numeric(28, 6), default=0)
+    status = Column(SQLEnum(StatusSugerido, name='status_sugerido', schema=SCHEMA), default=StatusSugerido.Created, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class GruposTresModel(Base):
+    """Modelo para Grupos_Tres."""
+    __tablename__ = "Grupos_Tres"
+    __table_args__ = {"schema": SCHEMA}
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    grupo_tres = Column("Grupo_Tres", String(255), unique=True, nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class GruposCuatroModel(Base):
+    """Modelo para Grupos_Cuatro."""
+    __tablename__ = "Grupos_Cuatro"
+    __table_args__ = {"schema": SCHEMA}
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    grupo_cuatro = Column("Grupo_Cuatro", String(255), unique=True, nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class GruposCincoModel(Base):
+    """Modelo para Grupos_Cinco."""
+    __tablename__ = "Grupos_Cinco"
+    __table_args__ = {"schema": SCHEMA}
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    grupo_cinco = Column("Grupo_Cinco", String(255), unique=True, nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

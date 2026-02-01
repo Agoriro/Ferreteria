@@ -21,8 +21,11 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
     # App
-    APP_NAME: str = "Hexagonal Auth API"
+    APP_NAME: str = "Ferreteria API"
     DEBUG: bool = False
+    
+    # CORS - Lista de orígenes permitidos separados por coma
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
     
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),

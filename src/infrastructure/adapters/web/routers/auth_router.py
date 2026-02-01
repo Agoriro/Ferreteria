@@ -17,9 +17,20 @@ async def login(
     auth_use_case: AuthUseCase = Depends(get_auth_use_case)
 ):
     """
-    Endpoint de login - Retorna Access Token y Refresh Token.
+    Endpoint de login (Form Data) - Para OAuth2/Swagger.
     """
     login_data = LoginRequest(username=form_data.username, password=form_data.password)
+    return await auth_use_case.login(login_data)
+
+
+@router.post("/login/json", response_model=Token)
+async def login_json(
+    login_data: LoginRequest,
+    auth_use_case: AuthUseCase = Depends(get_auth_use_case)
+):
+    """
+    Endpoint de login (JSON) - Para frontend.
+    """
     return await auth_use_case.login(login_data)
 
 

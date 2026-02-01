@@ -10,7 +10,9 @@ from domain.schemas.dias_entrega_proveedor_schema import (
     DiasEntregaProveedorCreate, 
     DiasEntregaProveedorUpdate,
     DiasEntregaProveedorListResponse,
-    DiasEntregaProveedorResponse
+    DiasEntregaProveedorResponse,
+    ProductoOptionsResponse,
+    ProveedorOptionsResponse
 )
 
 
@@ -25,12 +27,17 @@ class DiasEntregaProveedorUseCase:
     
     async def create(self, data: DiasEntregaProveedorCreate):
         """Crea un nuevo registro de días de entrega."""
-        # Verificar si ya existe un registro con la misma empresa y NIT
-        existing = await self.repository.get_by_empresa_nit(data.empresa, data.nit_proveedor)
+        # Verificar si ya existe un registro con la misma empresa, NIT y producto
+        existing = await self.repository.get_by_empresa_nit_producto(
+            data.empresa, 
+            data.nit_proveedor,
+            data.codigo_producto
+        )
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Ya existe un registro con empresa '{data.empresa}' y NIT proveedor '{data.nit_proveedor}'"
+                detail=f"Ya existe un registro con empresa '{data.empresa}', "
+                       f"NIT proveedor '{data.nit_proveedor}' y producto '{data.codigo_producto}'"
             )
         
         return await self.repository.create(data)
@@ -49,10 +56,13 @@ class DiasEntregaProveedorUseCase:
         self, 
         skip: int = 0, 
         limit: int = 100,
-        empresa: Optional[str] = None
+        empresa: Optional[str] = None,
+        codigo_producto: Optional[str] = None
     ) -> DiasEntregaProveedorListResponse:
-        """Lista todos los registros con paginación, opcionalmente filtrados por empresa."""
-        if empresa:
+        """Lista todos los registros con paginación, opcionalmente filtrados."""
+        if empresa and codigo_producto:
+            items, total = await self.repository.get_by_producto(empresa, codigo_producto, skip, limit)
+        elif empresa:
             items, total = await self.repository.get_by_empresa(empresa, skip, limit)
         else:
             items, total = await self.repository.get_all(skip, limit)
@@ -74,17 +84,22 @@ class DiasEntregaProveedorUseCase:
                 detail="Registro no encontrado"
             )
         
-        # Si se está actualizando empresa o NIT, verificar que no exista duplicado
+        # Si se está actualizando empresa, NIT o producto, verificar que no exista duplicado
         new_empresa = data.empresa if data.empresa else existing.empresa
         new_nit = data.nit_proveedor if data.nit_proveedor else existing.nit_proveedor
+        new_producto = data.codigo_producto if data.codigo_producto else existing.codigo_producto
         
         if (data.empresa and data.empresa != existing.empresa) or \
-           (data.nit_proveedor and data.nit_proveedor != existing.nit_proveedor):
-            duplicate = await self.repository.get_by_empresa_nit(new_empresa, new_nit)
+           (data.nit_proveedor and data.nit_proveedor != existing.nit_proveedor) or \
+           (data.codigo_producto and data.codigo_producto != existing.codigo_producto):
+            duplicate = await self.repository.get_by_empresa_nit_producto(
+                new_empresa, new_nit, new_producto
+            )
             if duplicate and duplicate.id != record_id:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Ya existe un registro con empresa '{new_empresa}' y NIT proveedor '{new_nit}'"
+                    detail=f"Ya existe un registro con empresa '{new_empresa}', "
+                           f"NIT proveedor '{new_nit}' y producto '{new_producto}'"
                 )
         
         return await self.repository.update(record_id, data)
@@ -107,6 +122,37 @@ class DiasEntregaProveedorUseCase:
             )
         
         return {"message": "Registro eliminado exitosamente"}
-
-
-
+    
+    async def get_productos_options(
+        self, 
+        empresa: str, 
+        search: Optional[str] = None,
+        limit: int = 50
+    ) -> ProductoOptionsResponse:
+        """
+        Obtiene lista de productos para dropdown.
+        Filtra por empresa y opcionalmente por búsqueda de texto.
+        """
+        items = await self.repository.get_productos_by_empresa(empresa, search, limit)
+        return ProductoOptionsResponse(items=items, total=len(items))
+    
+    async def get_proveedores_options(
+        self, 
+        empresa: str, 
+        search: Optional[str] = None,
+        limit: int = 50
+    ) -> ProveedorOptionsResponse:
+        """
+        Obtiene lista de proveedores para dropdown.
+        Filtra por empresa y opcionalmente por búsqueda de texto.
+        """
+        items = await self.repository.get_proveedores_by_empresa(empresa, search, limit)
+        return ProveedorOptionsResponse(items=items, total=len(items))
+    
+    async def get_min_dias_entrega(
+        self, 
+        empresa: str, 
+        codigo_producto: str
+    ) -> Optional[int]:
+        """Obtiene el mínimo de días de entrega para un producto."""
+        return await self.repository.get_min_dias_entrega(empresa, codigo_producto)
