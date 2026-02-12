@@ -20,7 +20,7 @@ from domain.schemas.sugerido_compras_schema import (
     SugeridoComprasResponse,
     StatusSugerido
 )
-from infrastructure.models.sqlalchemy_models import SugeridoComprasModel, StatusSugerido as ModelStatusSugerido
+from infrastructure.models.sqlalchemy_models import SugeridoComprasModel, StatusSugerido as ModelStatusSugerido, VistaTablaInventariosModel
 
 
 class SQLAlchemySugeridoComprasRepository(SugeridoComprasRepositoryPort):
@@ -67,6 +67,8 @@ class SQLAlchemySugeridoComprasRepository(SugeridoComprasRepositoryPort):
             util_1=model.util_1,
             precio2=model.precio2,
             util_2=model.util_2,
+            cantidad_proveedor=model.cantidad_proveedor,
+            valor_unitario_proveedor=model.valor_unitario_proveedor,
             status=StatusSugerido(model.status.value),
             created_at=model.created_at
         )
@@ -176,6 +178,173 @@ class SQLAlchemySugeridoComprasRepository(SugeridoComprasRepositoryPort):
         self.db.add_all(models)
         await self.db.commit()
         return len(models)
+    
+    async def get_requested_by_tercero(self, identificacion_tercero: Optional[str] = None) -> List[SugeridoComprasResponse]:
+        """
+        Obtener registros con status 'Requested'.
+        Si se proporciona identificacion_tercero, filtra por ese valor.
+        """
+        query = select(SugeridoComprasModel).where(
+            SugeridoComprasModel.status == ModelStatusSugerido.Requested
+        )
+        
+        if identificacion_tercero:
+            query = query.where(
+                SugeridoComprasModel.identificacion_tercero == identificacion_tercero
+            )
+        
+        query = query.order_by(SugeridoComprasModel.cod_prod)
+        
+        result = await self.db.execute(query)
+        models = result.scalars().all()
+        return [self._model_to_response(m) for m in models]
+    
+    async def bulk_update_proveedor(self, items: List[dict]) -> List[UUID]:
+        """
+        Actualizar cantidad_proveedor, valor_unitario_proveedor y cambiar status a 'Processed'.
+        Retorna lista de IDs actualizados.
+        """
+        updated_ids = []
+        
+        for item in items:
+            item_id = item['id']
+            cantidad = item['cantidad_proveedor']
+            valor = item['valor_unitario_proveedor']
+            
+            # Buscar el registro
+            result = await self.db.execute(
+                select(SugeridoComprasModel).where(SugeridoComprasModel.id == item_id)
+            )
+            model = result.scalar_one_or_none()
+            
+            if model:
+                model.cantidad_proveedor = cantidad
+                model.valor_unitario_proveedor = valor
+                model.status = ModelStatusSugerido.Processed
+                updated_ids.append(item_id)
+        
+        await self.db.commit()
+        return updated_ids
+    
+    async def get_processed(self) -> List[dict]:
+        """
+        Obtener registros con status 'Processed' con campos reducidos.
+        """
+        result = await self.db.execute(
+            select(
+                SugeridoComprasModel.id,
+                SugeridoComprasModel.empresa,
+                SugeridoComprasModel.proveedor,
+                SugeridoComprasModel.cod_prod,
+                SugeridoComprasModel.descripcion,
+                SugeridoComprasModel.unidad_medida,
+                SugeridoComprasModel.cantidad_proveedor,
+                SugeridoComprasModel.valor_unitario_proveedor
+            )
+            .where(SugeridoComprasModel.status == ModelStatusSugerido.Processed)
+            .order_by(SugeridoComprasModel.cod_prod)
+        )
+        rows = result.fetchall()
+        return [
+            {
+                "id": row.id,
+                "empresa": row.empresa,
+                "proveedor": row.proveedor,
+                "cod_prod": row.cod_prod,
+                "descripcion": row.descripcion,
+                "unidad_medida": row.unidad_medida,
+                "cantidad_proveedor": row.cantidad_proveedor,
+                "valor_unitario_proveedor": row.valor_unitario_proveedor
+            }
+            for row in rows
+        ]
+    
+    async def bulk_update_to_exported(self, ids: List[UUID], doc_info_map: dict = None) -> List[UUID]:
+        """
+        Actualizar múltiples registros a status 'Exported' y guardar datos del documento de exportación.
+        
+        Args:
+            ids: Lista de IDs a actualizar.
+            doc_info_map: Diccionario {id: {"tipo_doc": str, "prefijo": str, "num_doc": str}}
+        """
+        updated_ids = []
+        
+        for item_id in ids:
+            result = await self.db.execute(
+                select(SugeridoComprasModel).where(SugeridoComprasModel.id == item_id)
+            )
+            model = result.scalar_one_or_none()
+            
+            if model:
+                model.status = ModelStatusSugerido.Exported
+                if doc_info_map and item_id in doc_info_map:
+                    info = doc_info_map[item_id]
+                    model.tipo_doc_exp = info.get("tipo_doc", "")
+                    model.prefijo_exp = info.get("prefijo", "")
+                    model.num_doc_exp = info.get("num_doc", "")
+                updated_ids.append(item_id)
+        
+        await self.db.commit()
+        return updated_ids
+    
+    async def get_max_documento_oc(self) -> int:
+        """
+        Obtener el máximo Numero_Documento de Vista_Auxiliar_Movimientos_Inventario
+        donde Tipo_Documento = 'OC' y prefijo = 'CO'.
+        """
+        query = text("""
+            SELECT COALESCE(MAX(CAST("Numero_Documento" AS INTEGER)), 0) as max_doc
+            FROM "public"."Vista_Auxiliar_Movimientos_Inventario"
+            WHERE "Tipo_Documento" = 'OC' AND "prefijo" = 'CO'
+        """)
+        result = await self.db.execute(query)
+        row = result.fetchone()
+        return row.max_doc if row and row.max_doc else 0
+    
+    async def get_productos_iva(self, cod_prods: List[str]) -> dict:
+        """
+        Obtener IVA de Vista_Tabla_Inventarios por códigos de producto.
+        """
+        if not cod_prods:
+            return {}
+        
+        result = await self.db.execute(
+            select(
+                VistaTablaInventariosModel.codigo_producto,
+                VistaTablaInventariosModel.iva
+            )
+            .where(VistaTablaInventariosModel.codigo_producto.in_(cod_prods))
+        )
+        rows = result.fetchall()
+        return {row.codigo_producto: round(float(row.iva or 0), 2) for row in rows}
+    
+    async def get_sugeridos_for_export(self, ids: List[UUID]) -> List[dict]:
+        """
+        Obtener registros completos de sugerido_compras por IDs.
+        """
+        if not ids:
+            return []
+        
+        result = await self.db.execute(
+            select(SugeridoComprasModel)
+            .where(SugeridoComprasModel.id.in_(ids))
+            .order_by(SugeridoComprasModel.empresa, SugeridoComprasModel.identificacion_tercero, SugeridoComprasModel.cod_prod)
+        )
+        models = result.scalars().all()
+        return [
+            {
+                "id": model.id,
+                "empresa": model.empresa,
+                "proveedor": model.proveedor,
+                "identificacion_tercero": model.identificacion_tercero,
+                "cod_prod": model.cod_prod,
+                "descripcion": model.descripcion,
+                "unidad_medida": model.unidad_medida,
+                "cantidad_proveedor": model.cantidad_proveedor,
+                "valor_unitario_proveedor": model.valor_unitario_proveedor
+            }
+            for model in models
+        ]
     
     async def generar_sugerido(
         self,
@@ -354,7 +523,8 @@ class SQLAlchemySugeridoComprasRepository(SugeridoComprasRepositoryPort):
                  (1 + COALESCE(CAST(mov."Iva" AS NUMERIC), 0) / 100) as val_neto,
                 inv."Codigo_Producto",
                 fb.max_fecha,
-                mov."Empresa"
+                mov."Empresa",
+                mov."Identificacion_Tercero" as identificacion_tercero
             FROM "public"."Vista_Auxiliar_Movimientos_Inventario" mov
             INNER JOIN fecha_base fb ON mov."Fecha" = fb.max_fecha AND mov."Empresa" = fb."Empresa"
             INNER JOIN "public"."Vista_Tabla_Inventarios" inv 
@@ -382,6 +552,7 @@ class SQLAlchemySugeridoComprasRepository(SugeridoComprasRepositoryPort):
             bc.max_fecha as fecha,
             bc.num_doc,
             bc.proveedor,
+            bc.identificacion_tercero,
             inv."Descripcion_Grupo_Tres" as grupo3,
             inv."Descripcion_Grupo_Cuatro" as grupo4,
             inv."Descripcion_Grupo_Cinco" as grupo5,
@@ -454,6 +625,7 @@ class SQLAlchemySugeridoComprasRepository(SugeridoComprasRepositoryPort):
             bc.max_fecha,
             bc.num_doc,
             bc.proveedor,
+            bc.identificacion_tercero,
             inv."Descripcion_Grupo_Tres",
             inv."Descripcion_Grupo_Cuatro",
             inv."Descripcion_Grupo_Cinco",
@@ -508,6 +680,7 @@ class SQLAlchemySugeridoComprasRepository(SugeridoComprasRepositoryPort):
                 fecha=row.fecha,
                 num_doc=row.num_doc,
                 proveedor=row.proveedor,
+                identificacion_tercero=row.identificacion_tercero,
                 grupo3=row.grupo3,
                 grupo4=row.grupo4,
                 grupo5=row.grupo5,
@@ -548,3 +721,71 @@ class SQLAlchemySugeridoComprasRepository(SugeridoComprasRepositoryPort):
         
         # Retornar los registros con status = Created
         return await self.get_by_status(StatusSugerido.Created)
+
+    async def get_reporte(
+        self,
+        fecha_inicial: date,
+        fecha_final: date,
+        identificacion_tercero: Optional[str] = None,
+        status_filter: Optional[str] = None
+    ) -> List[dict]:
+        """
+        Obtener reporte de sugerido de compras filtrado por rango de fechas en updated_at,
+        opcionalmente por identificacion_tercero y status.
+        """
+        from datetime import datetime, timedelta
+        
+        # Convertir fechas a datetime para comparar con updated_at (que es timestamp)
+        fecha_inicio_dt = datetime.combine(fecha_inicial, datetime.min.time())
+        fecha_fin_dt = datetime.combine(fecha_final, datetime.max.time())
+        
+        query = select(
+            SugeridoComprasModel.empresa,
+            SugeridoComprasModel.proveedor,
+            SugeridoComprasModel.cod_prod,
+            SugeridoComprasModel.descripcion,
+            SugeridoComprasModel.unidad_medida,
+            SugeridoComprasModel.cantidad_proveedor,
+            SugeridoComprasModel.valor_unitario_proveedor,
+            SugeridoComprasModel.tipo_doc_exp,
+            SugeridoComprasModel.prefijo_exp,
+            SugeridoComprasModel.num_doc_exp,
+            SugeridoComprasModel.updated_at
+        ).where(
+            and_(
+                SugeridoComprasModel.updated_at >= fecha_inicio_dt,
+                SugeridoComprasModel.updated_at <= fecha_fin_dt
+            )
+        )
+        
+        if identificacion_tercero:
+            query = query.where(
+                SugeridoComprasModel.identificacion_tercero == identificacion_tercero
+            )
+        
+        if status_filter:
+            query = query.where(
+                SugeridoComprasModel.status == ModelStatusSugerido(status_filter)
+            )
+        
+        query = query.order_by(SugeridoComprasModel.updated_at.desc())
+        
+        result = await self.db.execute(query)
+        rows = result.fetchall()
+        
+        return [
+            {
+                "empresa": row.empresa,
+                "proveedor": row.proveedor,
+                "cod_prod": row.cod_prod,
+                "descripcion": row.descripcion,
+                "unidad_medida": row.unidad_medida,
+                "cantidad_proveedor": row.cantidad_proveedor,
+                "valor_unitario_proveedor": row.valor_unitario_proveedor,
+                "tipo_doc_exp": row.tipo_doc_exp,
+                "prefijo_exp": row.prefijo_exp,
+                "num_doc_exp": row.num_doc_exp,
+                "updated_at": row.updated_at
+            }
+            for row in rows
+        ]

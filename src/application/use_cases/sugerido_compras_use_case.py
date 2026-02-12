@@ -3,7 +3,9 @@ Casos de uso para Sugerido de Compras.
 """
 from typing import List, Optional
 from uuid import UUID
-from datetime import date
+from datetime import date, datetime
+from decimal import Decimal
+from collections import defaultdict
 from fastapi import HTTPException, status
 
 from domain.ports.sugerido_compras_repository import SugeridoComprasRepositoryPort
@@ -13,7 +15,12 @@ from domain.schemas.sugerido_compras_schema import (
     SugeridoComprasResponse,
     SugeridoComprasListResponse,
     StatusSugerido,
-    GenerarSugeridoRequest
+    GenerarSugeridoRequest,
+    SugeridoProcessedResponse,
+    SugeridoProcessedListResponse,
+    OrdenCompra,
+    OrdenCompraEncabezado,
+    OrdenCompraDetalle
 )
 
 
@@ -111,4 +118,158 @@ class SugeridoComprasUseCase:
         )
         
         return SugeridoComprasListResponse(items=items, total=len(items))
+    
+    async def get_requested_by_tercero(self, identificacion_tercero: Optional[str] = None) -> SugeridoComprasListResponse:
+        """
+        Obtener registros con status 'Requested'.
+        Si se proporciona identificacion_tercero, filtra por ese valor.
+        """
+        items = await self.repository.get_requested_by_tercero(identificacion_tercero)
+        return SugeridoComprasListResponse(items=items, total=len(items))
+    
+    async def bulk_update_proveedor(self, items: List[dict]) -> dict:
+        """
+        Actualizar cantidad_proveedor, valor_unitario_proveedor y cambiar status a 'Processed'.
+        Retorna información sobre los registros actualizados.
+        """
+        if not items:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Debe proporcionar al menos un item para actualizar"
+            )
+        
+        updated_ids = await self.repository.bulk_update_proveedor(items)
+        
+        return {
+            "message": "Registros actualizados correctamente",
+            "updated_count": len(updated_ids),
+            "updated_ids": [str(uid) for uid in updated_ids]
+        }
+    
+    async def get_processed(self) -> SugeridoProcessedListResponse:
+        """
+        Obtener registros con status 'Processed' con campos reducidos.
+        """
+        items_dict = await self.repository.get_processed()
+        items = [SugeridoProcessedResponse(**item) for item in items_dict]
+        return SugeridoProcessedListResponse(items=items, total=len(items))
+    
+    async def bulk_update_to_exported(self, ids: List[UUID]) -> dict:
+        """
+        Actualizar múltiples registros a status 'Exported' y generar órdenes de compra.
+        """
+        if not ids:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Debe proporcionar al menos un ID para actualizar"
+            )
+        
+        # 1. Obtener registros completos antes de actualizar
+        sugeridos = await self.repository.get_sugeridos_for_export(ids)
+        
+        if not sugeridos:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontraron registros con los IDs proporcionados"
+            )
+        
+        # 2. Obtener máximo número de documento OC
+        max_doc = await self.repository.get_max_documento_oc()
+        
+        # 3. Obtener IVA de productos
+        cod_prods = list(set(s["cod_prod"] for s in sugeridos))
+        iva_map = await self.repository.get_productos_iva(cod_prods)
+        
+        # 4. Agrupar por empresa + identificacion_tercero
+        grupos = defaultdict(list)
+        for sug in sugeridos:
+            key = (sug["empresa"], sug["identificacion_tercero"])
+            grupos[key].append(sug)
+        
+        # 5. Generar órdenes de compra
+        fecha_actual = datetime.now().strftime("%d/%m/%Y")
+        ordenes = []
+        doc_counter = 1
+        doc_info_map = {}
+        
+        for (empresa, identificacion_tercero), items in grupos.items():
+            # Encabezado
+            tipo_doc = "OC"
+            prefijo = "CO"
+            num_doc = str(max_doc + doc_counter)
+            
+            encabezado = OrdenCompraEncabezado(
+                empresa=empresa or "",
+                tipo_documento=tipo_doc,
+                prefijo=prefijo,
+                documento_numero=num_doc,
+                fecha=fecha_actual,
+                tercero_interno="39425084",
+                tercero_externo=identificacion_tercero or "",
+                nota="Orden de compra generada desde la Herramienta Web",
+                forma_pago="CREDITO",
+                verificado=-1,
+                anulado=0
+            )
+            
+            # Detalles
+            detalles = []
+            for item in items:
+                iva = iva_map.get(item["cod_prod"], 0)
+                detalle = OrdenCompraDetalle(
+                    producto=item["cod_prod"] or "",
+                    bodega="Principal",
+                    unidad_de_medida=item["unidad_medida"] or "",
+                    cantidad=Decimal(str(item["cantidad_proveedor"] or 0)),
+                    iva=Decimal(str(round(iva, 2))),
+                    valor_unitario=Decimal(str(item["valor_unitario_proveedor"] or 0)),
+                    descuento=Decimal("0"),
+                    vencimiento=fecha_actual
+                )
+                detalles.append(detalle)
+                
+                # Mapear cada registro a los datos del documento
+                doc_info_map[item["id"]] = {
+                    "tipo_doc": tipo_doc,
+                    "prefijo": prefijo,
+                    "num_doc": num_doc
+                }
+            
+            orden = OrdenCompra(encabezado=encabezado, detalles=detalles)
+            ordenes.append(orden)
+            doc_counter += 1
+        
+        # 6. Actualizar status a Exported y guardar datos del documento
+        updated_ids = await self.repository.bulk_update_to_exported(ids, doc_info_map)
+        
+        return {
+            "message": "Registros actualizados a 'Exported' correctamente",
+            "updated_count": len(updated_ids),
+            "updated_ids": [str(uid) for uid in updated_ids],
+            "ordenes_compra": ordenes
+        }
 
+    async def get_reporte(
+        self,
+        fecha_inicial: date,
+        fecha_final: date,
+        identificacion_tercero: Optional[str] = None,
+        status_filter: Optional[str] = None
+    ) -> dict:
+        """
+        Obtener reporte de sugerido de compras filtrado por fechas y filtros opcionales.
+        """
+        if fecha_final < fecha_inicial:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La fecha final debe ser mayor o igual a la fecha inicial"
+            )
+        
+        items = await self.repository.get_reporte(
+            fecha_inicial=fecha_inicial,
+            fecha_final=fecha_final,
+            identificacion_tercero=identificacion_tercero,
+            status_filter=status_filter
+        )
+        
+        return {"items": items, "total": len(items)}

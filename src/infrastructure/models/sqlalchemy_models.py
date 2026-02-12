@@ -131,7 +131,7 @@ class VistaTablaInventariosModel(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     empresa = Column(String, nullable=False)
     autonumerico = Column(Integer, nullable=True)
-    codigo_producto = Column(String, nullable=False)
+    codigo_producto = Column("Codigo_Producto", String, nullable=False)
     descripcion = Column(String, nullable=False)
     maximo_permitido = Column(Numeric(28, 6), nullable=True)
     minimo_permitido = Column(Numeric(28, 6), nullable=True)
@@ -167,7 +167,7 @@ class VistaTablaInventariosModel(Base):
     precio28 = Column(Numeric(28, 6), nullable=True)
     precio29 = Column(Numeric(28, 6), nullable=True)
     precio30 = Column(Numeric(28, 6), nullable=True)
-    iva = Column(Numeric(28, 6), nullable=True)
+    iva = Column("Iva", Numeric(28, 6), nullable=True)
     activo = Column(SmallInteger, nullable=True)
     grupo_uno = Column(Integer, nullable=True)
     grupo_dos = Column(Integer, nullable=True)
@@ -230,6 +230,7 @@ class StatusSugerido(enum.Enum):
     Created = "Created"
     Requested = "Requested"
     Processed = "Processed"
+    Exported = "Exported"
 
 
 class SugeridoComprasModel(Base):
@@ -242,6 +243,7 @@ class SugeridoComprasModel(Base):
     fecha = Column(Date, nullable=True)
     num_doc = Column(String(100), nullable=True)
     proveedor = Column(String(255), nullable=True)
+    identificacion_tercero = Column(String(100), nullable=True)
     grupo3 = Column(String(255), nullable=True)
     grupo4 = Column(String(255), nullable=True)
     grupo5 = Column(String(255), nullable=True)
@@ -272,8 +274,14 @@ class SugeridoComprasModel(Base):
     util_1 = Column(Numeric(28, 6), default=0)
     precio2 = Column(Numeric(28, 6), default=0)
     util_2 = Column(Numeric(28, 6), default=0)
+    cantidad_proveedor = Column(Numeric(28, 6), default=0)
+    valor_unitario_proveedor = Column(Numeric(28, 6), default=0)
+    tipo_doc_exp = Column(String(100), nullable=True)
+    prefijo_exp = Column(String(100), nullable=True)
+    num_doc_exp = Column(String(100), nullable=True)
     status = Column(SQLEnum(StatusSugerido, name='status_sugerido', schema=SCHEMA), default=StatusSugerido.Created, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class GruposTresModel(Base):
