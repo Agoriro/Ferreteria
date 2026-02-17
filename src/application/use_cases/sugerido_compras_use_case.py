@@ -92,6 +92,18 @@ class SugeridoComprasUseCase:
             "count": count
         }
     
+    async def bulk_update_created_to_requested(self) -> dict:
+        """
+        Actualizar todos los registros con status 'Created' a 'Requested'.
+        """
+        updated_count = await self.repository.bulk_update_created_to_requested()
+        if updated_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontraron registros con status 'Created'"
+            )
+        return {"message": f"{updated_count} registros actualizados a 'Requested'", "updated_count": updated_count}
+    
     async def generar_sugerido(self, request: GenerarSugeridoRequest) -> SugeridoComprasListResponse:
         """
         Ejecutar el proceso de generación de sugerido de compras.
@@ -273,3 +285,24 @@ class SugeridoComprasUseCase:
         )
         
         return {"items": items, "total": len(items)}
+
+    async def reject(self, id: UUID) -> SugeridoComprasResponse:
+        """
+        Rechazar un registro de sugerido de compras.
+        Solo se puede rechazar un registro con status 'Processed'.
+        """
+        record = await self.repository.get_by_id(id)
+        if not record:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Registro con ID {id} no encontrado"
+            )
+        
+        if record.status != StatusSugerido.Processed:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Solo se pueden rechazar registros con status 'Processed'. Status actual: '{record.status.value}'"
+            )
+        
+        result = await self.repository.update_status(id, StatusSugerido.Rejected)
+        return result

@@ -24,7 +24,7 @@ class SQLAlchemyPermisoRepository:
         Obtiene los formularios a los que tiene acceso un rol.
         
         Args:
-            nombre_rol: Nombre del rol (ADMIN, USER, MANAGER)
+            nombre_rol: Nombre del rol (ADMIN, COMPRAS, PROVEEDOR)
             
         Returns:
             Lista de formularios con sus permisos

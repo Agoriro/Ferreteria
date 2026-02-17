@@ -11,7 +11,7 @@ class VistaInventarioItem(BaseModel):
     """DTO para respuesta de un item de inventario (campos básicos)."""
     empresa: str = Field(..., description="Empresa a la que pertenece el producto")
     codigo_producto: str = Field(..., description="Código único del producto")
-    descripcion: str = Field(..., description="Descripción del producto")
+    descripcion: Optional[str] = Field(None, description="Descripción del producto")
     
     model_config = ConfigDict(from_attributes=True)
 

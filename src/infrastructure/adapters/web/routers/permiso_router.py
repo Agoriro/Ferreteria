@@ -20,8 +20,8 @@ router = APIRouter(prefix="/permisos", tags=["Permisos"])
     
     **Roles disponibles:**
     - ADMIN: Acceso a todos los formularios
-    - USER: Acceso a Sugerido de compras, Requisición de compras, Exportar Requisiciones, Reportes
-    - MANAGER: Acceso solo a Requisición de compras
+    - COMPRAS: Acceso a Sugerido de compras, Requisición de compras, Exportar Requisiciones, Reportes
+    - PROVEEDOR: Acceso solo a Requisición de compras
     
     **Respuesta:**
     - Lista de formularios con nombre, descripción, ruta y permisos (leer, crear, editar, eliminar)
@@ -35,7 +35,7 @@ async def get_formularios_by_rol(
     """
     Obtiene los formularios permitidos para un rol.
     
-    - **nombre_rol**: Nombre del rol (ADMIN, USER, MANAGER)
+    - **nombre_rol**: Nombre del rol (ADMIN, COMPRAS, PROVEEDOR)
     """
     result = await permiso_use_case.obtener_formularios_permitidos(nombre_rol)
     return result

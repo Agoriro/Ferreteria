@@ -12,7 +12,6 @@ class DiasEntregaProveedorBase(BaseModel):
     """Base schema con campos comunes."""
     empresa: str = Field(..., min_length=1, max_length=100, description="Código o nombre de la empresa")
     nit_proveedor: str = Field(..., min_length=1, max_length=200, description="NIT o identificación del proveedor")
-    codigo_producto: str = Field(..., min_length=1, max_length=100, description="Código del producto")
     dias_entrega: int = Field(..., ge=0, description="Cantidad de días estimados de entrega")
 
 
@@ -25,7 +24,6 @@ class DiasEntregaProveedorUpdate(BaseModel):
     """DTO para actualización - todos los campos opcionales."""
     empresa: Optional[str] = Field(None, min_length=1, max_length=100)
     nit_proveedor: Optional[str] = Field(None, min_length=1, max_length=200)
-    codigo_producto: Optional[str] = Field(None, min_length=1, max_length=100)
     dias_entrega: Optional[int] = Field(None, ge=0)
 
 
@@ -44,21 +42,6 @@ class DiasEntregaProveedorListResponse(BaseModel):
     total: int
     skip: int
     limit: int
-
-
-# Schemas para lista desplegable de productos
-class ProductoOption(BaseModel):
-    """DTO para opción de producto en lista desplegable."""
-    codigo_producto: str = Field(..., description="Código del producto")
-    descripcion: str = Field(..., description="Descripción del producto")
-    
-    model_config = ConfigDict(from_attributes=True)
-
-
-class ProductoOptionsResponse(BaseModel):
-    """DTO para lista de opciones de productos."""
-    items: List[ProductoOption]
-    total: int
 
 
 # Schemas para lista desplegable de proveedores

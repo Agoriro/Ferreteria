@@ -17,7 +17,7 @@ class PermisoUseCase:
         Obtiene los formularios a los que tiene acceso un rol.
         
         Args:
-            nombre_rol: Nombre del rol (ADMIN, USER, MANAGER)
+            nombre_rol: Nombre del rol (ADMIN, COMPRAS, PROVEEDOR)
             
         Returns:
             PermisosRolResponse con la lista de formularios permitidos

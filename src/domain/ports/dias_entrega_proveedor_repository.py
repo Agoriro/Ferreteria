@@ -8,7 +8,6 @@ from uuid import UUID
 from domain.schemas.dias_entrega_proveedor_schema import (
     DiasEntregaProveedorCreate, 
     DiasEntregaProveedorUpdate,
-    ProductoOption,
     ProveedorOption
 )
 
@@ -27,13 +26,12 @@ class DiasEntregaProveedorRepositoryPort(ABC):
         pass
     
     @abstractmethod
-    async def get_by_empresa_nit_producto(
+    async def get_by_empresa_nit(
         self, 
         empresa: str, 
-        nit_proveedor: str, 
-        codigo_producto: str
+        nit_proveedor: str
     ):
-        """Obtiene registro por empresa, NIT del proveedor y código de producto."""
+        """Obtiene registro por empresa y NIT del proveedor."""
         pass
     
     @abstractmethod
@@ -47,17 +45,6 @@ class DiasEntregaProveedorRepositoryPort(ABC):
         pass
     
     @abstractmethod
-    async def get_by_producto(
-        self, 
-        empresa: str, 
-        codigo_producto: str, 
-        skip: int = 0, 
-        limit: int = 100
-    ) -> Tuple[List, int]:
-        """Lista registros filtrados por empresa y producto."""
-        pass
-    
-    @abstractmethod
     async def update(self, record_id: UUID, data: DiasEntregaProveedorUpdate):
         """Actualiza un registro."""
         pass
@@ -65,16 +52,6 @@ class DiasEntregaProveedorRepositoryPort(ABC):
     @abstractmethod
     async def delete(self, record_id: UUID) -> bool:
         """Elimina un registro permanentemente."""
-        pass
-    
-    @abstractmethod
-    async def get_productos_by_empresa(
-        self, 
-        empresa: str, 
-        search: Optional[str] = None,
-        limit: int = 50
-    ) -> List[ProductoOption]:
-        """Obtiene lista de productos para dropdown filtrados por empresa."""
         pass
     
     @abstractmethod
@@ -90,8 +67,7 @@ class DiasEntregaProveedorRepositoryPort(ABC):
     @abstractmethod
     async def get_min_dias_entrega(
         self, 
-        empresa: str, 
-        codigo_producto: str
+        empresa: str
     ) -> Optional[int]:
-        """Obtiene el mínimo de días de entrega para un producto en una empresa."""
+        """Obtiene el mínimo de días de entrega para una empresa."""
         pass

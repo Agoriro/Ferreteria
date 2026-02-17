@@ -15,6 +15,7 @@ class StatusSugerido(str, Enum):
     Requested = "Requested"
     Processed = "Processed"
     Exported = "Exported"
+    Rejected = "Rejected"
 
 
 class SugeridoComprasBase(BaseModel):
@@ -182,6 +183,9 @@ class SugeridoProcessedResponse(BaseModel):
     unidad_medida: Optional[str] = None
     cantidad_proveedor: Optional[Decimal] = None
     valor_unitario_proveedor: Optional[Decimal] = None
+    val_unit: Optional[Decimal] = None
+    precio1: Optional[Decimal] = None
+    precio2: Optional[Decimal] = None
 
     class Config:
         from_attributes = True

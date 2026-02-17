@@ -59,6 +59,11 @@ class SugeridoComprasRepositoryPort(ABC):
         pass
     
     @abstractmethod
+    async def bulk_update_created_to_requested(self) -> int:
+        """Actualizar todos los registros con status 'Created' a 'Requested'. Retorna cantidad actualizada."""
+        pass
+    
+    @abstractmethod
     async def generar_sugerido(
         self,
         fecha_inicial: date,

@@ -2,6 +2,7 @@
 Implementación SQLAlchemy del repositorio de Sugerido de Compras.
 """
 import logging
+import math
 from typing import List, Optional
 from uuid import UUID
 from datetime import date
@@ -108,7 +109,7 @@ class SQLAlchemySugeridoComprasRepository(SugeridoComprasRepositoryPort):
         result = await self.db.execute(
             select(SugeridoComprasModel)
             .where(SugeridoComprasModel.status == ModelStatusSugerido(status.value))
-            .order_by(SugeridoComprasModel.cod_prod)
+            .order_by(SugeridoComprasModel.proveedor.desc())
         )
         models = result.scalars().all()
         return [self._model_to_response(m) for m in models]
@@ -162,6 +163,16 @@ class SQLAlchemySugeridoComprasRepository(SugeridoComprasRepositoryPort):
         result = await self.db.execute(
             delete(SugeridoComprasModel)
             .where(SugeridoComprasModel.status == ModelStatusSugerido(status.value))
+        )
+        await self.db.commit()
+        return result.rowcount
+    
+    async def bulk_update_created_to_requested(self) -> int:
+        """Actualizar todos los registros con status 'Created' a 'Requested'."""
+        result = await self.db.execute(
+            update(SugeridoComprasModel)
+            .where(SugeridoComprasModel.status == ModelStatusSugerido.Created)
+            .values(status=ModelStatusSugerido.Requested)
         )
         await self.db.commit()
         return result.rowcount
@@ -359,7 +370,7 @@ class SQLAlchemySugeridoComprasRepository(SugeridoComprasRepositoryPort):
         
         Fórmula:
         - Demanda_diaria = ventas_en_el_periodo / días_del_periodo
-        - Tiempo_entrega = MIN(dias_entrega) de dias_entrega_proveedor (por empresa + producto)
+        - Tiempo_entrega = MIN(dias_entrega) de dias_entrega_proveedor (por empresa + proveedor)
         - Días_margen = Tiempo_entrega (mismo valor)
         - Stock_seguridad = Demanda_diaria × Días_margen
         - Sugerido = (Demanda_diaria × Tiempo_entrega) + Stock_seguridad
@@ -383,14 +394,14 @@ class SQLAlchemySugeridoComprasRepository(SugeridoComprasRepositoryPort):
             SELECT (CAST(:fecha_final AS DATE) - CAST(:fecha_inicial AS DATE) + 1) as dias
         ),
         
-        -- Mínimo de días de entrega por empresa y producto
+        -- Mínimo de días de entrega por empresa y proveedor
         min_dias_entrega AS (
             SELECT 
                 dep.empresa,
-                dep.codigo_producto,
+                dep.nit_proveedor,
                 MIN(dep.dias_entrega) as dias_entrega
             FROM "public".dias_entrega_proveedor dep
-            GROUP BY dep.empresa, dep.codigo_producto
+            GROUP BY dep.empresa, dep.nit_proveedor
         ),
         
         -- Proveedores por producto (últimos 4)
@@ -400,6 +411,8 @@ class SQLAlchemySugeridoComprasRepository(SugeridoComprasRepositoryPort):
                     mov."CodigoInventario",
                     mov."Empresa",
                     mov."Identificacion_Tercero" || ' - ' || mov."Tercero" as proveedor,
+                    mov."Tercero" as proveedor_nombre,
+                    mov."Identificacion_Tercero" as identificacion_tercero,
                     ROW_NUMBER() OVER (
                         PARTITION BY mov."CodigoInventario", mov."Empresa"
                         ORDER BY MAX(mov."Fecha") DESC
@@ -417,6 +430,8 @@ class SQLAlchemySugeridoComprasRepository(SugeridoComprasRepositoryPort):
                 "CodigoInventario",
                 "Empresa",
                 MAX(CASE WHEN num_linea = 1 THEN proveedor END) as prov1,
+                MAX(CASE WHEN num_linea = 1 THEN proveedor_nombre END) as prov1_nombre,
+                MAX(CASE WHEN num_linea = 1 THEN identificacion_tercero END) as prov1_identificacion,
                 MAX(CASE WHEN num_linea = 2 THEN proveedor END) as prov2,
                 MAX(CASE WHEN num_linea = 3 THEN proveedor END) as prov3,
                 MAX(CASE WHEN num_linea = 4 THEN proveedor END) as prov4
@@ -507,7 +522,7 @@ class SQLAlchemySugeridoComprasRepository(SugeridoComprasRepositoryPort):
             FROM "public"."Vista_Auxiliar_Movimientos_Inventario" mov
             INNER JOIN "public"."Vista_Tabla_Inventarios" inv 
                 ON mov."CodigoInventario" = inv."Codigo_Producto"
-            WHERE mov."Tipo_Documento" IN ('FC', 'EPT')
+            WHERE mov."Tipo_Documento" IN ('FC')
             GROUP BY inv."Autonumerico", mov."Empresa"
         ),
         
@@ -530,7 +545,7 @@ class SQLAlchemySugeridoComprasRepository(SugeridoComprasRepositoryPort):
             INNER JOIN "public"."Vista_Tabla_Inventarios" inv 
                 ON mov."CodigoInventario" = inv."Codigo_Producto" 
                 AND fb."Autonumerico" = inv."Autonumerico"
-            WHERE mov."Tipo_Documento" IN ('FC', 'EPT')
+            WHERE mov."Tipo_Documento" IN ('FC')
               AND COALESCE(CAST(mov."Anulado" AS INTEGER), 0) = 0
             ORDER BY inv."Codigo_Producto", mov."Empresa", mov."Fecha" DESC
         ),
@@ -551,8 +566,8 @@ class SQLAlchemySugeridoComprasRepository(SugeridoComprasRepositoryPort):
             inv."Empresa" as empresa,
             bc.max_fecha as fecha,
             bc.num_doc,
-            bc.proveedor,
-            bc.identificacion_tercero,
+            MAX(pp.prov1_nombre) as proveedor,
+            MAX(pp.prov1_identificacion) as identificacion_tercero,
             inv."Descripcion_Grupo_Tres" as grupo3,
             inv."Descripcion_Grupo_Cuatro" as grupo4,
             inv."Descripcion_Grupo_Cinco" as grupo5,
@@ -605,9 +620,9 @@ class SQLAlchemySugeridoComprasRepository(SugeridoComprasRepositoryPort):
         LEFT JOIN compras c ON c."CodigoInventario" = inv."Codigo_Producto" AND c."Empresa" = bc."Empresa"
         LEFT JOIN entradas e ON e."CodigoInventario" = inv."Codigo_Producto" AND e."Empresa" = bc."Empresa"
         LEFT JOIN salidas s ON s."CodigoInventario" = inv."Codigo_Producto" AND s."Empresa" = bc."Empresa"
-        LEFT JOIN prov_pivot pp ON pp."CodigoInventario" = inv."Codigo_Producto" AND pp."Empresa" = bc."Empresa"
+        LEFT JOIN prov_pivot pp ON pp."CodigoInventario" = inv."Codigo_Producto" AND pp."Empresa" = inv."Empresa"
         LEFT JOIN existencias_mc emc ON emc."Codigo_Producto" = inv."Codigo_Producto"
-        LEFT JOIN min_dias_entrega mde ON mde.empresa = bc."Empresa" AND mde.codigo_producto = inv."Codigo_Producto"
+        LEFT JOIN min_dias_entrega mde ON mde.empresa = bc."Empresa" AND mde.nit_proveedor = bc.identificacion_tercero
         WHERE inv."Clasificacion" = 'Producto'
           AND COALESCE(v.ventas, 0) <> 0
           AND NOT EXISTS (
@@ -624,15 +639,13 @@ class SQLAlchemySugeridoComprasRepository(SugeridoComprasRepositoryPort):
             inv."Empresa",
             bc.max_fecha,
             bc.num_doc,
-            bc.proveedor,
-            bc.identificacion_tercero,
             inv."Descripcion_Grupo_Tres",
             inv."Descripcion_Grupo_Cuatro",
             inv."Descripcion_Grupo_Cinco",
             inv."Codigo_Producto",
             inv."Descripcion",
             inv."Unidad_de_Medida"
-        ORDER BY inv."Codigo_Producto"
+        ORDER BY proveedor DESC
         """)
         
         # Ejecutar la query con bindparams explícitos
@@ -692,7 +705,7 @@ class SQLAlchemySugeridoComprasRepository(SugeridoComprasRepositoryPort):
                 cantidad_ventas_anterior=Decimal(str(row.cantidad_ventas_anterior)) if row.cantidad_ventas_anterior else Decimal("0"),
                 cantidad_ventas_actual=Decimal(str(row.cantidad_ventas_actual)) if row.cantidad_ventas_actual else Decimal("0"),
                 sugerido_compras=Decimal(str(row.sugerido_compras)) if row.sugerido_compras else Decimal("0"),
-                cantidad_a_pedir=Decimal("0"),
+                cantidad_a_pedir=Decimal(str(math.ceil(float(row.sugerido_compras)))) if row.sugerido_compras else Decimal("0"),
                 proveedor1=row.proveedor1,
                 proveedor2=row.proveedor2,
                 proveedor3=row.proveedor3,

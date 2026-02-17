@@ -89,6 +89,19 @@ async def get_sugeridos_processed(
     return await use_case.get_processed()
 
 
+@router.patch("/confirm")
+async def confirm_sugerido_compras(
+    use_case: SugeridoComprasUseCase = Depends(get_sugerido_compras_use_case)
+):
+    """
+    Confirmar el sugerido de compras.
+    
+    Actualiza todos los registros con status 'Created' a 'Requested'.
+    Retorna la cantidad de registros actualizados.
+    """
+    return await use_case.bulk_update_created_to_requested()
+
+
 @router.post("/generar", response_model=SugeridoComprasListResponse)
 async def generar_sugerido_compras(
     request: GenerarSugeridoRequest,
@@ -189,6 +202,23 @@ async def get_reporte_sugeridos(
         identificacion_tercero=identificacion_tercero,
         status_filter=status
     )
+
+
+@router.patch("/{id}/reject", response_model=SugeridoComprasResponse)
+async def reject_sugerido(
+    id: UUID,
+    use_case: SugeridoComprasUseCase = Depends(get_sugerido_compras_use_case)
+):
+    """
+    Rechazar un registro de sugerido de compras.
+    
+    Cambia el status del registro a 'Rejected'.
+    
+    **Validaciones:**
+    - El registro debe existir
+    - El registro debe tener status 'Processed'
+    """
+    return await use_case.reject(id)
 
 
 # Rutas con parámetro {id} al final para evitar conflictos de enrutamiento

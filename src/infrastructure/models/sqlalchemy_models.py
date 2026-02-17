@@ -117,7 +117,6 @@ class DiasEntregaProveedorModel(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     empresa = Column(String(100), nullable=False, index=True)
     nit_proveedor = Column(String(200), nullable=False, index=True)
-    codigo_producto = Column(String(100), nullable=False, index=True)
     dias_entrega = Column(Integer, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -129,10 +128,10 @@ class VistaTablaInventariosModel(Base):
     __table_args__ = {"schema": SCHEMA}
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    empresa = Column(String, nullable=False)
-    autonumerico = Column(Integer, nullable=True)
+    empresa = Column("Empresa", String, nullable=False)
+    autonumerico = Column("Autonumerico", Integer, nullable=True)
     codigo_producto = Column("Codigo_Producto", String, nullable=False)
-    descripcion = Column(String, nullable=False)
+    descripcion = Column("Descripcion", String, nullable=False)
     maximo_permitido = Column(Numeric(28, 6), nullable=True)
     minimo_permitido = Column(Numeric(28, 6), nullable=True)
     punto_de_reorden = Column(Numeric(28, 6), nullable=True)
@@ -231,6 +230,7 @@ class StatusSugerido(enum.Enum):
     Requested = "Requested"
     Processed = "Processed"
     Exported = "Exported"
+    Rejected = "Rejected"
 
 
 class SugeridoComprasModel(Base):
